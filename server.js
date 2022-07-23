@@ -30,6 +30,9 @@ var server = http.createServer(function (request, response) {
   // 根据用户请求得到后缀名
   const index = filePath.lastIndexOf(".");
   const suffix = filePath.substring(index);
+
+  console.log(suffix);
+
   // 将后缀名按照哈希表的形式一一映射到对应的text
   const fileTypes = {
     ".html": "text/html",
