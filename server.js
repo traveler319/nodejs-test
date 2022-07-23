@@ -23,30 +23,36 @@ var server = http.createServer(function (request, response) {
 
   console.log("有个傻子发请求过来啦！路径（带查询参数）为：" + pathWithQuery);
 
-  if (path === "/") {
-    response.statusCode = 200;
-    response.setHeader("Content-Type", "text/html;charset=utf-8");
-    response.write(`
-      <!DOCTYPE html>
-      <head>
-        <link rel="stylesheet" href="/x">
-      </head>
-      <body>
-        <h1>Hello, world!</h1>
-      </body>
-    `);
-    response.end();
-  } else if (path === "/x") {
-    response.statusCode = 200;
-    response.setHeader("Content-Type", "text/css;charset=utf-8");
-    response.write(`h1{color: red;}`);
-    response.end();
-  } else {
+  response.statusCode = 200;
+
+  // 默认首页
+  const filePath = path === "/" ? "/index.html" : path;
+  // 根据用户请求得到后缀名
+  const index = filePath.lastIndexOf(".");
+  const suffix = filePath.substring(index);
+  // 将后缀名按照哈希表的形式一一映射到对应的text
+  const fileTypes = {
+    ".html": "text/html",
+    ".css": "text/css",
+    ".js": "text/javascript",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+  };
+
+  response.setHeader(
+    "Content-Type",
+    `${fileTypes[suffix]} || 'text/html';charset=utf-8`
+  );
+
+  let content;
+  try {
+    content = fs.readFileSync(`./public${filePath}`);
+  } catch {
+    content = "文件不存在";
     response.statusCode = 404;
-    response.setHeader("Content-Type", "text/html;charset=utf-8");
-    response.write(`您访问的页面不存在`);
-    response.end();
   }
+  response.write(content);
+  response.end();
 
   /******** 代码结束，下面不要看 ************/
 });
