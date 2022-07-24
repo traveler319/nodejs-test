@@ -44,7 +44,7 @@ var server = http.createServer(function (request, response) {
 
   response.setHeader(
     "Content-Type",
-    `${fileTypes[suffix]} || 'text/html';charset=utf-8`
+    `${fileTypes[suffix] || "text/html"};charset=utf-8`
   );
 
   let content;
