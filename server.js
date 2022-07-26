@@ -23,39 +23,122 @@ var server = http.createServer(function (request, response) {
 
   console.log("有个傻子发请求过来啦！路径（带查询参数）为：" + pathWithQuery);
 
-  response.statusCode = 200;
+  const session = JSON.parse(fs.readFileSync("./session.json").toString());
 
-  // 默认首页
-  const filePath = path === "/" ? "/index.html" : path;
-  // 根据用户请求得到后缀名
-  const index = filePath.lastIndexOf(".");
-  const suffix = filePath.substring(index);
+  if (path === "/home.html") {
+    const cookie = request.headers["cookie"];
+    let sessionId;
+    try {
+      sessionId = cookie
+        .split(";")
+        .filter((s) => s.indexOf("session_id=") >= 0)[0]
+        .split("=")[1];
+    } catch (error) {}
+    if (sessionId && session[sessionId]) {
+      const userId = session[sessionId].user_Id;
+      const userArray = JSON.parse(fs.readFileSync("./db/users.json"));
+      const user = userArray.find((user) => user.id === userId);
+      const homeHtml = fs.readFileSync("./public/home.html").toString();
+      let string = "";
+      if (user) {
+        string = homeHtml
+          .replace("{{loginStatus}}", "已登录")
+          .replace("{{user.name}}", user.name);
+      }
+      response.write(string);
+    } else {
+      const homeHtml = fs.readFileSync("./public/home.html").toString();
+      string = homeHtml
+        .replace("{{loginStatus}}", "未登录")
+        .replace("{{user.name}}", "");
+      response.write(string);
+    }
+    response.end();
+  } else if (path === "/sign_in" && method === "POST") {
+    const userArray = JSON.parse(fs.readFileSync("./db/users.json"));
+    // 将数据塞入到数组里
+    const array = [];
+    // 因为无法提前预知请求的数据大小，所以分段上传
+    request.on("data", (chunk) => {
+      array.push(chunk);
+    });
+    request.on("end", () => {
+      const string = Buffer.concat(array).toString();
+      const obj = JSON.parse(string); // 包含name和password
+      // 判断数据库里是否有该用户，如果有就返回符合条件的第一个用户，如果没有就返回undefined
+      const user = userArray.find(
+        (user) => user.name === obj.name && user.password === obj.password
+      );
+      if (user === undefined) {
+        response.statusCode = 400;
+        response.setHeader("Content-Type", "text/json; charset=utf-8");
+      } else {
+        response.statusCode = 200;
+        const random = Math.random();
+        session[random] = { user_id: user.id };
+        fs.writeFileSync("./session.json", JSON.stringify(session));
+        response.setHeader("Set-Cookie", `session_id=${random}; HttpOnly`);
+      }
+      response.end();
+    });
+  } else if (path === "/sign_up" && method === "POST") {
+    response.setHeader("Content-Type", "text/html; charset=utf-8");
+    const userArray = JSON.parse(fs.readFileSync("./db/users.json"));
+    // 将数据塞入到数组里
+    const array = [];
+    // 因为无法提前预知请求的数据大小，所以分段上传
+    request.on("data", (chunk) => {
+      array.push(chunk);
+    });
+    request.on("end", () => {
+      const string = Buffer.concat(array).toString();
+      const obj = JSON.parse(string);
+      const lastUser = userArray[userArray.length - 1];
+      // id为最后一个用户的id+1，或者为第一个
+      const newUser = {
+        id: lastUser ? lastUser.id + 1 : 1,
+        name: obj.name,
+        password: obj.password,
+      };
+      userArray.push(newUser);
+      fs.writeFileSync("./db/users.json", JSON.stringify(userArray));
+      response.end();
+    });
+  } else {
+    response.statusCode = 200;
 
-  console.log(suffix);
+    // 默认首页
+    const filePath = path === "/" ? "/index.html" : path;
+    // 根据用户请求得到后缀名
+    const index = filePath.lastIndexOf(".");
+    const suffix = filePath.substring(index);
 
-  // 将后缀名按照哈希表的形式一一映射到对应的text
-  const fileTypes = {
-    ".html": "text/html",
-    ".css": "text/css",
-    ".js": "text/javascript",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-  };
+    console.log(suffix);
 
-  response.setHeader(
-    "Content-Type",
-    `${fileTypes[suffix] || "text/html"};charset=utf-8`
-  );
+    // 将后缀名按照哈希表的形式一一映射到对应的text
+    const fileTypes = {
+      ".html": "text/html",
+      ".css": "text/css",
+      ".js": "text/javascript",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+    };
 
-  let content;
-  try {
-    content = fs.readFileSync(`./public${filePath}`);
-  } catch {
-    content = "文件不存在";
-    response.statusCode = 404;
+    response.setHeader(
+      "Content-Type",
+      `${fileTypes[suffix] || "text/html"};charset=utf-8`
+    );
+
+    let content;
+    try {
+      content = fs.readFileSync(`./public${filePath}`);
+    } catch {
+      content = "文件不存在";
+      response.statusCode = 404;
+    }
+    response.write(content);
+    response.end();
   }
-  response.write(content);
-  response.end();
 
   /******** 代码结束，下面不要看 ************/
 });
