@@ -35,7 +35,7 @@ var server = http.createServer(function (request, response) {
         .split("=")[1];
     } catch (error) {}
     if (sessionId && session[sessionId]) {
-      const userId = session[sessionId].user_Id;
+      const userId = session[sessionId].user_id;
       const userArray = JSON.parse(fs.readFileSync("./db/users.json"));
       const user = userArray.find((user) => user.id === userId);
       const homeHtml = fs.readFileSync("./public/home.html").toString();
